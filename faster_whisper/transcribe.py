@@ -93,6 +93,7 @@ class TranscriptionOptions:
     prepend_punctuations: str
     append_punctuations: str
     multilingual: bool
+    multilingual_languages: Optional[List[str]] = None  # Restrict multilingual detection to these languages
     max_new_tokens: Optional[int]
     clip_timestamps: Union[str, List[float]]
     hallucination_silence_threshold: Optional[float]
@@ -797,6 +798,7 @@ class WhisperModel:
         prepend_punctuations: str = "\"'“¿([{-",
         append_punctuations: str = "\"'.。,，!！?？:：”)]}、",
         multilingual: bool = False,
+        multilingual_languages: Optional[List[str]] = None,
         vad_filter: Union[bool, list] = False,
         vad_parameters: Optional[Union[dict, VadOptions]] = None,
         max_new_tokens: Optional[int] = None,
@@ -856,6 +858,9 @@ class WhisperModel:
           append_punctuations: If word_timestamps is True, merge these punctuation symbols
             with the previous word
           multilingual: Perform language detection on every segment.
+          multilingual_languages: If set, restrict per-segment language detection to only these
+            language codes (e.g., ["en", "ms"]). If detected language is not in this list,
+            the tokenizer keeps the current language instead of switching.
           vad_filter: Enable the voice activity detection (VAD) to filter out parts of the audio
             without speech. This step is using the Silero VAD model
             https://github.com/snakers4/silero-vad.
@@ -1026,6 +1031,7 @@ class WhisperModel:
             prepend_punctuations=prepend_punctuations,
             append_punctuations=append_punctuations,
             multilingual=multilingual,
+            multilingual_languages=multilingual_languages,
             max_new_tokens=max_new_tokens,
             clip_timestamps=clip_timestamps,
             hallucination_silence_threshold=hallucination_silence_threshold,
@@ -1237,8 +1243,17 @@ class WhisperModel:
                 language_token, language_probability = results[0][0]
                 language = language_token[2:-2]
 
-                tokenizer.language = tokenizer.tokenizer.token_to_id(language_token)
-                tokenizer.language_code = language
+                # Restrict multilingual detection to allowed languages (en/ms)
+                # If detected language is not in allowed list, use the initial language
+                allowed_languages = getattr(options, 'multilingual_languages', None)
+                if allowed_languages and language not in allowed_languages:
+                    # Keep the current tokenizer language (don't change it)
+                    self.logger.debug(
+                        f"Multilingual: detected '{language}' not in allowed {allowed_languages}, keeping current language"
+                    )
+                else:
+                    tokenizer.language = tokenizer.tokenizer.token_to_id(language_token)
+                    tokenizer.language_code = language
 
             prompt = self.get_prompt(
                 tokenizer,
