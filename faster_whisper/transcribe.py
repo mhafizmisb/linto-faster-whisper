@@ -93,11 +93,11 @@ class TranscriptionOptions:
     prepend_punctuations: str
     append_punctuations: str
     multilingual: bool
-    multilingual_languages: Optional[List[str]] = None  # Restrict multilingual detection to these languages
     max_new_tokens: Optional[int]
     clip_timestamps: Union[str, List[float]]
     hallucination_silence_threshold: Optional[float]
     hotwords: Optional[str]
+    multilingual_languages: Optional[List[str]] = None  # Restrict multilingual detection to these languages
 
 
 @dataclass
